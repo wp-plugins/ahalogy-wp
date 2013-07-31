@@ -4,7 +4,7 @@ Contributors: Ahalogy
 Tags: pinterest, ahalogy
 Requires at least: 2.8
 Tested up to: 3.5.2
-Stable tag: 1.0.1
+Stable tag: 1.0.3
 
 Adds the Ahalogy Engagement code to your site with no fuss.
 
