@@ -84,8 +84,8 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
       if ($options['client_id']) {
         $url = $ahalogyWP_instance->mobilify_api_domain . '/api/articles/notify_changed/' . $options['client_id'] . '/' . $post_id;
 
-        $response = wp_remote_head( $url, array(
-          'method' => 'HEAD',
+        $response = wp_remote_post( $url, array(
+          'method' => 'POST',
           'timeout' => 10,
           'redirection' => 5,
           'httpversion' => '1.0',
