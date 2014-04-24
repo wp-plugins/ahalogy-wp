@@ -24,9 +24,9 @@ class Ahalogy_JSON_API_Attachment {
     $this->id = (int) $wp_attachment->ID;
     $this->url = $wp_attachment->guid;
     $this->slug = $wp_attachment->post_name;
-    $this->title = $wp_attachment->post_title;
-    $this->description = $wp_attachment->post_content;
-    $this->caption = $wp_attachment->post_excerpt;
+    $this->title = html_entity_decode($wp_attachment->post_title, ENT_COMPAT, 'UTF-8');
+    $this->description = html_entity_decode($wp_attachment->post_content, ENT_COMPAT, 'UTF-8');
+    $this->caption = html_entity_decode($wp_attachment->post_excerpt, ENT_COMPAT, 'UTF-8');
     $this->parent = (int) $wp_attachment->post_parent;
     $this->mime_type = $wp_attachment->post_mime_type;
   }

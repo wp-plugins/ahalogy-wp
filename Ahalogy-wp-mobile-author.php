@@ -30,7 +30,7 @@ class Mobilify_JSON_API_Author {
     if (!$wp_key) {
       $wp_key = $key;
     }
-    $this->$key = get_the_author_meta($wp_key, $this->id);
+    $this->$key = html_entity_decode(get_the_author_meta($wp_key, $this->id), ENT_COMPAT, 'UTF-8');
   }
     
 }

@@ -16,10 +16,11 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
         $options = $ahalogyWP_instance->optionsGetOptions();
       }
 
-      if (( isset($options)) && ($options['mobilify_optin'] )) {
+      add_action( 'template_redirect', array(&$this, 'jsonTemplateRedirect'));
+
+      if (( isset($options)) && (isset($options['mobilify_optin'])) && ($options['mobilify_optin'])) {
         add_action( 'admin_init', array( &$this, 'ahalogyMobileCheck' ) ); // mobile reqs check
         add_action( 'save_post', array( &$this, 'updateMobilePost' ) ); 
-        add_action( 'template_redirect', array(&$this, 'jsonTemplateRedirect'));
         add_action( 'wp_head', array( &$this, 'getMobilifyHeaderCode' ), 99999 );        
       }
   }   
@@ -76,9 +77,9 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
       }
 
       // If this is just a revision, don't do anything
-      if ( wp_is_post_revision( $post_id ) ) {
+      if ((wp_is_post_revision($post_id)) || ($_POST['post_status'] != 'publish') || ($_POST['visibility'] != 'public')) {
           return;
-      }
+      } 
 
       //Here is where we will ping ahalogy's servers with new post information.
       if ($options['client_id']) {
@@ -143,26 +144,34 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
   //redirect to JSON template if necessary
   function jsonTemplateRedirect() {
     global $ahalogyWP_instance;
+    $options = $ahalogyWP_instance->optionsGetOptions();
 
       //Check that is this is a single post
       if(is_single()) {
-          if (isset($_REQUEST['mobilify_json'])) {
-              if ($_REQUEST['mobilify_json'] == 1) {
-                
-                //Authenticate the api key
-                $this->authenticateAPIKey();
+        if (isset($_REQUEST['mobilify_json'])) {
+          if ($_REQUEST['mobilify_json'] == 1) {
+            
+            //Authenticate the api key
+            $this->authenticateAPIKey();
 
-                //Post is single and has the ahalogy_json parameter. Let's redirect it.
-                global $post;
+            if ($options['mobilify_optin']) {
+              //Post is single and has the ahalogy_json parameter. Let's redirect it.
+              global $post;
 
-                $response = array(
-                  'post' => new Mobilify_JSON_API_Post($post)
-                );
+              $response = array(
+                'post' => new Mobilify_JSON_API_Post($post)
+              );                  
+            } else {
+              $response = array(
+                'status' => 'error',
+                'error' => 'Labs not enabled'
+              );
+            }
 
-                $this->respond($response);
-                exit;
-              } 
+            $this->respond($response);
+            exit;
           } 
+        } 
       }
 
       //Check if it's the homepage and they are trying to hit the index API
@@ -178,51 +187,67 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
               //Authenticate the API Key
               $this->authenticateAPIKey();
 
-              //mobilify_index is true. Show index json
+              //Make sure mobilify is enabaled
+              if ($options['mobilify_optin']) {
 
-              // Arguments for WP_Query
-              $args = 
-                array( 
-                  'posts_per_page' => -1, 
-                  'orderby' => 'modified'
-                );  
+                //Pagination
+                $paged = (isset($_GET["page"]) && $_GET['page'] !== '') ? $_GET["page"] : 1;
+                $count = (isset($_GET["rpp"]) && $_GET['rpp'] !== '') ? $_GET["rpp"] : 100;
 
-              //Check for modified_since date parameter
-              if (isset($_REQUEST['modified_since'])) {
-                $modifieddate = $_REQUEST['modified_since'];
+                // Arguments for WP_Query
+                $args = 
+                  array( 
+                    'posts_per_page' => $count,
+                    'paged' => $paged,
+                    'orderby' => 'modified',
+                    'order' => 'DESC'
+                  );  
 
-                if ($this->is_timestamp($modifieddate)) {  
-                  $moddatearray = getdate($modifieddate);
+                //Check for modified_since date parameter
+                if (isset($_REQUEST['modified_since'])) {
+                  $modifieddate = $_REQUEST['modified_since'];
 
-                  $args['date_query'] = array(
-                        'column' => 'post_modified_gmt',
-                        'after'  => 
-                          array(
-                            'year'  => $moddatearray['year'],
-                            'month' => $moddatearray['mon'],
-                            'day'   => $moddatearray['mday'],
-                          )
-                      );
-                } 
-              }
+                  if ($this->is_timestamp($modifieddate)) {  
+                    $moddatearray = getdate($modifieddate);
 
-              $the_query = new WP_Query( $args );
+                    $args['date_query'] = array(
+                          'column' => 'post_modified_gmt',
+                          'after'  => 
+                            array(
+                              'year'  => $moddatearray['year'],
+                              'month' => $moddatearray['mon'],
+                              'day'   => $moddatearray['mday'],
+                            )
+                        );
+                  } 
+                }
 
-              if ( $the_query->have_posts() ) {
-                
-                $response = array();
+                $the_query = new WP_Query( $args );
 
-                while ( $the_query->have_posts() ) {
-                  $the_query->the_post();   
-                  global $post;
-                  $postoutput['id'] = $post->ID;    
-                  $postoutput['title'] = $post->post_title;
-                  $postoutput['url'] = get_permalink($post->id);
-                  $postoutput['modified'] = date($ahalogyWP_instance->date_format, strtotime($post->post_modified));
-                  $response['posts'][] = $postoutput;
+                if ( $the_query->have_posts() ) {
+                  
+                  $response = array();
+
+                  $response['page'] = $paged;
+                  $response['rpp'] = $count;
+
+                  while ( $the_query->have_posts() ) {
+                    $the_query->the_post();   
+                    global $post;
+                    $postoutput['id'] = $post->ID;    
+                    $postoutput['title'] = $post->post_title;
+                    $postoutput['url'] = get_permalink($post->id);
+                    $postoutput['modified'] = date($ahalogyWP_instance->date_format, strtotime($post->post_modified));
+                    $response['posts'][] = $postoutput;
+                  }
+                } else {
+                  $response = array("status" => "no results");
                 }
               } else {
-                $response = array("status" => "no results");
+                $response = array(
+                  'status' => 'error',
+                  'error' => 'Labs not enabled'
+                );                
               }
               $this->respond($response);      
               exit;                  
@@ -234,9 +259,12 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
     }
 
   function get_json($data, $status = 'ok') {
+    global $ahalogyWP_instance;
+
     // Include a status value with the response
+    // Include plugin version with the response
     if (is_array($data)) {
-      $data = array_merge(array('status' => $status), $data);
+      $data = array_merge(array('status' => $status), array('plugin_version' => $ahalogyWP_instance->plugin_version), $data);
     } else if (is_object($data)) {
       $data = get_object_vars($data);
       $data = array_merge(array('status' => $status), $data);

@@ -4,7 +4,7 @@ Contributors: Ahalogy
 Tags: pinterest, ahalogy
 Requires at least: 2.8
 Tested up to: 3.8.1
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 
 Lets Ahalogy calibrate your pin scheduling and show engagements to your visitors.
 

@@ -11,10 +11,10 @@ class Mobilify_JSON_API_Post {
   var $title;           // String
   var $title_plain;     // String
   var $content;         // String (modified by read_more query var)
+  var $raw_content;     // String
   var $excerpt;         // String
   var $date;            // String (modified by date_format query var)
   var $modified;        // String (modified by date_format query var)
-  var $categories;      // Array of objects
   var $author;          // Object
   var $attachments;     // Array of objects
   var $featured_image;   // Object
@@ -38,17 +38,17 @@ class Mobilify_JSON_API_Post {
     $this->set_value('title', get_the_title($this->id));
     $this->set_value('title_plain', strip_tags(@$this->title));
     $this->set_content_value();
+    $this->set_value('raw_content', wpautop($post->post_content));
     $this->set_value('excerpt', apply_filters('the_excerpt', get_the_excerpt()));
     $this->set_value('date', get_the_time($ahalogyWP_instance->date_format));
     $this->set_value('modified', date($ahalogyWP_instance->date_format, strtotime($wp_post->post_modified)));
-    $this->set_categories_value();
     $this->set_author_value($wp_post->post_author);
     $this->set_attachments_value();
     $this->set_featured_image();
   }
   
   function set_value($key, $value) {
-    $this->$key = $value;
+    $this->$key = html_entity_decode($value, ENT_COMPAT, 'UTF-8');
   }
     
   function set_content_value() {
@@ -57,17 +57,17 @@ class Mobilify_JSON_API_Post {
     $content = str_replace(']]>', ']]&gt;', $content);
     $this->content = $content;
   }
-  
-  function set_categories_value() {
-    $this->categories = array();
-    if ($wp_categories = get_the_category($this->id)) {
-      foreach ($wp_categories as $wp_category) {
-        $category = new Mobilify_JSON_API_Category($wp_category);
-        $this->categories[] = $category;
-      }
-    }
+
+  function print_filters_for( $hook = '' ) {
+    global $wp_filter;
+    if( empty( $hook ) || !isset( $wp_filter[$hook] ) )
+        return;
+
+    print '<pre>';
+    print_r( $wp_filter[$hook] );
+    print '</pre>';
   }
-    
+      
   function set_author_value($author_id) {
     $this->author = new Mobilify_JSON_API_Author($author_id);
   }
@@ -81,6 +81,7 @@ class Mobilify_JSON_API_Post {
       'suppress_filters' => false
     ));
     $attachments = array();
+
     if (!empty($wp_attachments)) {
       foreach ($wp_attachments as $wp_attachment) {
         $attachments[] = new Ahalogy_JSON_API_Attachment($wp_attachment);
