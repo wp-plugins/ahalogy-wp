@@ -18,9 +18,15 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
 
       add_action( 'template_redirect', array(&$this, 'jsonTemplateRedirect'));
 
-      if (( isset($options)) && (isset($options['mobilify_optin'])) && ($options['mobilify_optin'])) {
+      add_action( 'admin_init', array( &$this, 'mobilifyOptinCheck' ) ); // mobile reqs check
+
+
+      if (( isset($options)) && (isset($options['mobilify_api_optin'])) && ($options['mobilify_api_optin'])) {
         add_action( 'admin_init', array( &$this, 'ahalogyMobileCheck' ) ); // mobile reqs check
         add_action( 'save_post', array( &$this, 'updateMobilePost' ) ); 
+      }
+
+      if (( isset($options)) && (isset($options['mobilify_optin'])) && ($options['mobilify_optin'])) {
         add_action( 'wp_head', array( &$this, 'getMobilifyHeaderCode' ), 99999 );        
       }
   }   
@@ -30,9 +36,7 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
     global $post;
 
     if (is_single()) {
-
       $options = $ahalogyWP_instance->optionsGetOptions();
-
       if ($ahalogyWP_instance->display_none) {
         $css_rule = '<style type="text/css">body{display:none;}</style>';
       } else {
@@ -111,10 +115,22 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
   
   // Verify we can use native JSON functions
   function ahalogyMobileCheck() {
-      if (phpversion() < 5) {
-          add_action('admin_notices', array( &$this, 'ahalogyPHPWarning' ) );
-          return;
-      }
+    if (phpversion() < 5) {
+      add_action('admin_notices', array( &$this, 'ahalogyPHPWarning' ) );
+      return;
+    }
+  }
+
+  //Check that the mobilify_optin option is set. If not, set it and default to 1
+  function mobilifyOptinCheck() {
+    global $ahalogyWP_instance;
+    $options = $ahalogyWP_instance->optionsGetOptions();
+
+    if (!isset($options['mobilify_api_optin'])) {
+      $options['mobilify_api_optin'] = 1;
+      //register_setting( $ahalogyWP_instance->options_group, $ahalogyWP_instance->options_name, array( &$this, 'optionsValidate' ) );
+      update_option( $ahalogyWP_instance->options_name, $options );
+    }
   }
 
   // Check for PHP version 5 or greater
@@ -154,7 +170,7 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
             //Authenticate the api key
             $this->authenticateAPIKey();
 
-            if ($options['mobilify_optin']) {
+            if ($options['mobilify_api_optin']) {
               //Post is single and has the ahalogy_json parameter. Let's redirect it.
               global $post;
 
@@ -164,7 +180,7 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
             } else {
               $response = array(
                 'status' => 'error',
-                'error' => 'Labs not enabled'
+                'error' => 'Ahalogy API not enabled'
               );
             }
 
@@ -174,89 +190,143 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
         } 
       }
 
-      //Check if it's the homepage and they are trying to hit the index API
+      //Check if it's the homepage for site wide API calls
       if (is_front_page()) {  
         
-        if (isset($_REQUEST['mobilify_json'])) {
-          if ($_REQUEST['mobilify_json'] == 1) {
+        //Check for initial API request
+        if ((isset($_REQUEST['mobilify_json'])) && ($_REQUEST['mobilify_json'] == 1)) {
 
-            //mobilify_json is true. Check the method
-            if (isset($_REQUEST['mobilify_index'])) {
-              if ($_REQUEST['mobilify_index'] == 1) {
-              
-              //Authenticate the API Key
-              $this->authenticateAPIKey();
+          //Authenticate the API Key
+          $this->authenticateAPIKey();
 
-              //Make sure mobilify is enabaled
-              if ($options['mobilify_optin']) {
+          //Ahalogy plugin settings query
+          if ((isset($_REQUEST['ahalogy_settings_index'])) && ($_REQUEST['ahalogy_settings_index'] == 1)) { 
 
-                //Pagination
-                $paged = (isset($_GET["page"]) && $_GET['page'] !== '') ? $_GET["page"] : 1;
-                $count = (isset($_GET["rpp"]) && $_GET['rpp'] !== '') ? $_GET["rpp"] : 100;
+            //Build settings array
+            $response = array();
+            $response['plugin_version'] = $ahalogyWP_instance->plugin_version;
 
-                // Arguments for WP_Query
-                $args = 
-                  array( 
-                    'posts_per_page' => $count,
-                    'paged' => $paged,
-                    'orderby' => 'modified',
-                    'order' => 'DESC'
-                  );  
+            if (isset($options)) {
+              foreach ($options as $key => $value) {
+                $response[$key] = $value;
+              }
+            }
 
-                //Check for modified_since date parameter
-                if (isset($_REQUEST['modified_since'])) {
-                  $modifieddate = $_REQUEST['modified_since'];
+            $this->respond($response); 
+          }
 
-                  if ($this->is_timestamp($modifieddate)) {  
-                    $moddatearray = getdate($modifieddate);
+          $response = array();
 
-                    $args['date_query'] = array(
-                          'column' => 'post_modified_gmt',
-                          'after'  => 
-                            array(
-                              'year'  => $moddatearray['year'],
-                              'month' => $moddatearray['mon'],
-                              'day'   => $moddatearray['mday'],
-                            )
-                        );
-                  } 
-                }
+          //Ahalogy plugin settings update
+          if ((isset($_REQUEST['ahalogy_settings_update'])) && ($_REQUEST['ahalogy_settings_update'] == 1)) {
+            
+            $updatesettings = false;
+            $updatedoptions = $options;
+            
+            if (isset($options)) {
+              foreach ($options as $key => $value) {
+                if (isset($_REQUEST[$key])) {                  
 
-                $the_query = new WP_Query( $args );
-
-                if ( $the_query->have_posts() ) {
-                  
-                  $response = array();
-
-                  $response['page'] = $paged;
-                  $response['rpp'] = $count;
-
-                  while ( $the_query->have_posts() ) {
-                    $the_query->the_post();   
-                    global $post;
-                    $postoutput['id'] = $post->ID;    
-                    $postoutput['title'] = $post->post_title;
-                    $postoutput['url'] = get_permalink($post->id);
-                    $postoutput['modified'] = date($ahalogyWP_instance->date_format, strtotime($post->post_modified));
-                    $response['posts'][] = $postoutput;
+                  if (in_array($key, array('insert_code','mobilify_api_optin','mobilify_optin'))) {
+                    //boolean
+                    if ($_REQUEST[$key] == '0') {
+                      $updatedoptions[$key] = 0;
+                    } else if ($_REQUEST[$key] == '1') {
+                      $updatedoptions[$key] = 1;
+                    }
+                  } else if (in_array($key, array('client_id'))) {
+                    //check against regex
+                    $client_id_pattern = '/[0-9]{9,10}(-[a-z]+)?/i';
+                    if (preg_match($client_id_pattern,$_REQUEST[$key],$matches)) {
+                      $updatedoptions[$key] = sanitize_text_field($_REQUEST[$key]);
+                    }
+                  } else if (in_array($key, array('location'))) {
+                    //string
+                    if (in_array($_REQUEST[$key], array('head','body'))) {
+                      $updatedoptions[$key] = sanitize_text_field($_REQUEST[$key]);
+                    }
                   }
-                } else {
-                  $response = array("status" => "no results");
+
+                } 
+              }
+            }
+            
+            update_option($ahalogyWP_instance->options_name, $updatedoptions);
+
+            $this->respond($response);             
+          }          
+
+          //The Index API. mobilify_json is true. Check the method
+          if ((isset($_REQUEST['mobilify_index'])) && ($_REQUEST['mobilify_index'] == 1)) {
+            
+            //Make sure mobilify is enabaled
+            if ($options['mobilify_api_optin']) {
+
+              //Pagination
+              $paged = (isset($_GET["page"]) && $_GET['page'] !== '') ? $_GET["page"] : 1;
+              $count = (isset($_GET["rpp"]) && $_GET['rpp'] !== '') ? $_GET["rpp"] : 100;
+
+              // Arguments for WP_Query
+              $args = 
+                array( 
+                  'posts_per_page' => $count,
+                  'paged' => $paged,
+                  'orderby' => 'modified',
+                  'order' => 'DESC'
+                );  
+
+              //Check for modified_since date parameter
+              if (isset($_REQUEST['modified_since'])) {
+                $modifieddate = $_REQUEST['modified_since'];
+
+                if ($this->is_timestamp($modifieddate)) {  
+                  $moddatearray = getdate($modifieddate);
+
+                  $args['date_query'] = array(
+                        'column' => 'post_modified_gmt',
+                        'after'  => 
+                          array(
+                            'year'  => $moddatearray['year'],
+                            'month' => $moddatearray['mon'],
+                            'day'   => $moddatearray['mday'],
+                          )
+                      );
+                } 
+              }
+
+              $the_query = new WP_Query( $args );
+
+              if ( $the_query->have_posts() ) {
+                
+                $response = array();
+
+                $response['page'] = $paged;
+                $response['rpp'] = $count;
+
+                while ( $the_query->have_posts() ) {
+                  $the_query->the_post();   
+                  global $post;
+                  $postoutput['id'] = $post->ID;    
+                  $postoutput['title'] = $post->post_title;
+                  $postoutput['url'] = get_permalink($post->id);
+                  $postoutput['modified'] = date($ahalogyWP_instance->date_format, strtotime($post->post_modified));
+                  $response['posts'][] = $postoutput;
                 }
               } else {
-                $response = array(
-                  'status' => 'error',
-                  'error' => 'Labs not enabled'
-                );                
+                $response = array("status" => "no results");
               }
-              $this->respond($response);      
-              exit;                  
-              }
+            } else {
+              $response = array(
+                'status' => 'error',
+                'error' => 'Ahalogy API not enabled'
+              );                
+            }
+            $this->respond($response);      
+            exit;                  
             }
           }
         }
       }
-    }
 
   function get_json($data, $status = 'ok') {
     global $ahalogyWP_instance;
@@ -264,7 +334,7 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
     // Include a status value with the response
     // Include plugin version with the response
     if (is_array($data)) {
-      $data = array_merge(array('status' => $status), array('plugin_version' => $ahalogyWP_instance->plugin_version), $data);
+      $data = array_merge(array('status' => $status), $data);
     } else if (is_object($data)) {
       $data = get_object_vars($data);
       $data = array_merge(array('status' => $status), $data);

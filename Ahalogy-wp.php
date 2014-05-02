@@ -3,7 +3,7 @@
 Plugin Name: Ahalogy
 Plugin URI: https://app.ahalogy.com/
 Description: Inserts the Ahalogy snippet into your website
-Version: 1.1.1
+Version: 1.1.3
 Author: Ahalogy
 Author URI: http://www.ahalogy.com
 License: GPLv3
@@ -19,7 +19,7 @@ class ahalogyWP {
 	var $plugin_homepage = 'https://app.ahalogy.com/';
 	var $plugin_name = 'Ahalogy';
 	var $plugin_textdomain = 'ahalogyWP';
-	var $plugin_version = '1.1.1';	
+	var $plugin_version = '1.1.3';	
   var $plugin_api_key = 'VdJXFxivKY9PEyuwN2P';
 	var $mobilify_environment = 'development';
 	var $mobilify_js_domain = 'https://w.ahalogy.com';
@@ -57,7 +57,8 @@ class ahalogyWP {
 			'client_id' => '',
 			'insert_code' => 0,
 			'location' => 'head',
-			'mobilify_optin' => 0,			
+			'mobilify_optin' => 0,		
+			'mobilify_api_optin' => 1
 		);
 		return $defaults;
 	}
@@ -92,40 +93,44 @@ class ahalogyWP {
 		$input['insert_code'] = (( isset($input['insert_code']) && ($input['insert_code'] )) ? 1 : 0 ); 	// (checkbox) if TRUE then 1, else NULL
 		$input['client_id'] =  wp_filter_nohtml_kses( $input['client_id'] ); // (textbox) safe text, no html
 		$input['location'] = ( $input['location'] == 'head' ? 'head' : 'body' ); // (radio) either head or body
+		$input['mobilify_api_optin'] = (( isset($input['mobilify_api_optin']) && ( $input['mobilify_api_optin'] )) ? 1 : 0 ); // (checkbox) if TRUE then 1, else NULL
 		$input['mobilify_optin'] = (( isset($input['mobilify_optin']) && ( $input['mobilify_optin'] )) ? 1 : 0 ); // (checkbox) if TRUE then 1, else NULL
+
 
 		//Check if the mobility_optin has changed or not
 		$current_options = $this->optionsGetOptions();
 
 		if ($current_options['client_id']) {
-			if ($current_options['mobilify_optin'] <> $input['mobilify_optin']) {
-				if ($input['mobilify_optin']) {
-					//They turned it on	
-					$payload_value = 'true';
-				} else {
-					//They turned it off	
-					$payload_value = 'false';
-				}
+			if ((isset($current_options['mobilify_optin'])) && (isset($input['mobilify_optin']))) {
+				if ($current_options['mobilify_optin'] <> $input['mobilify_optin']) {
+					if ($input['mobilify_optin']) {
+						//They turned it on	
+						$payload_value = 'true';
+					} else {
+						//They turned it off	
+						$payload_value = 'false';
+					}
 
-				$url = $this->mobilify_api_domain . '/api/clients/' . $current_options['client_id'] . '/labs_changed';
+					$url = $this->mobilify_api_domain . '/api/clients/' . $current_options['client_id'] . '/labs_changed';
 
-	      $response = wp_remote_post( $url, array(
-	        'method' => 'POST',
-	        'timeout' => 10,
-	        'redirection' => 5,
-	        'httpversion' => '1.0',
-	        'blocking' => true,
-	        'headers' => array(),
-	        'body' => array( 'value' => $payload_value ),
-	        'cookies' => array()
-	          )
-	      );	
+		      $response = wp_remote_post( $url, array(
+		        'method' => 'POST',
+		        'timeout' => 10,
+		        'redirection' => 5,
+		        'httpversion' => '1.0',
+		        'blocking' => true,
+		        'headers' => array(),
+		        'body' => array( 'value' => $payload_value ),
+		        'cookies' => array()
+		          )
+		      );	
 
-        if ( is_wp_error( $response ) ) {
-          //Setting the error but we won't do anything with it for now.
-          $error_message = $response->get_error_message();
-        } 
-			} 
+	        if ( is_wp_error( $response ) ) {
+	          //Setting the error but we won't do anything with it for now.
+	          $error_message = $response->get_error_message();
+	        } 
+				} 
+			}
 		}
 
 		return $input;
@@ -134,10 +139,10 @@ class ahalogyWP {
 	// draw a checkbox option
 	function optionsDrawCheckbox( $slug, $label, $style_checked='', $style_unchecked='' ) {
 		$options = $this->optionsGetOptions();
+		$defaults = $this->optionsGetDefaults();
 
 		if (!isset($options[$slug])) {	
 			//index isn't identified. set the default
-			$defaults = $this->optionsGetDefaults();
 			$options[$slug] = $defaults[$slug];
 		}
 
@@ -197,7 +202,9 @@ class ahalogyWP {
 						</td>
 					</tr>
 
-					<?php $this->optionsDrawCheckbox( 'mobilify_optin', 'Enable Ahalogy Labs (beta)', '', 'color:#000;' ); ?>
+					<?php $this->optionsDrawCheckbox( 'mobilify_api_optin', 'Enable Ahalogy API Access', '', 'color:#000;' ); ?>
+
+					<?php $this->optionsDrawCheckbox( 'mobilify_optin', 'Enable Mobile Optimization', '', 'color:#000;' ); ?>
 
 				</table>
 				<p class="submit">
