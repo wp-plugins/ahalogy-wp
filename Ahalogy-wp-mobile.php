@@ -138,7 +138,7 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
     echo "<div id=\"json-api-warning\" class=\"updated fade\"><p>Sorry, the Ahalogy plugin requires PHP version 5.0 or greater.</p></div>";
   }
 
-  //Authentication - check for API Key
+//Authentication - check for API Key
   function authenticateAPIKey() {
     global $ahalogyWP_instance;
 
@@ -160,6 +160,10 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
   //redirect to JSON template if necessary
   function jsonTemplateRedirect() {
     global $ahalogyWP_instance;
+    
+    // Compatibility with Disqus plugin
+    remove_action('loop_end', 'dsq_loop_end');
+    
     $options = $ahalogyWP_instance->optionsGetOptions();
 
       //Check that is this is a single post
@@ -246,7 +250,6 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
                       $updatedoptions[$key] = sanitize_text_field($_REQUEST[$key]);
                     }
                   }
-
                 } 
               }
             }

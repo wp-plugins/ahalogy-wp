@@ -3,7 +3,7 @@
 Plugin Name: Ahalogy
 Plugin URI: https://app.ahalogy.com/
 Description: Inserts the Ahalogy snippet into your website
-Version: 1.1.3
+Version: 1.1.4
 Author: Ahalogy
 Author URI: http://www.ahalogy.com
 License: GPLv3
