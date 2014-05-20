@@ -4,13 +4,13 @@ Contributors: Ahalogy
 Tags: pinterest, ahalogy
 Requires at least: 2.8
 Tested up to: 3.8.1
-Stable tag: 1.1.3
+Stable tag: 1.1.5
 
 Lets Ahalogy calibrate your pin scheduling and show engagements to your visitors.
 
 == Description ==
 
-This plugin will include the Ahalogy code snippet on your site to enable the various features available to Ahalogy partners such as optimized pin scheduling and an a personalized engagement box.
+This plugin will include the Ahalogy code snippet on your site to enable the various features available to Ahalogy partners such as optimized pin scheduling and a personalized engagement box.
 In order to make use of this plugin, you must be an Ahalogy partner and have your Client ID.
 
 == Installation ==
