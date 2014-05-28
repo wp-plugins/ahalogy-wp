@@ -337,7 +337,7 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
     // Include a status value with the response
     // Include plugin version with the response
     if (is_array($data)) {
-      $data = array_merge(array('status' => $status), $data);
+      $data = array_merge(array('status' => $status), array('plugin_version' => $ahalogyWP_instance->plugin_version), $data);
     } else if (is_object($data)) {
       $data = get_object_vars($data);
       $data = array_merge(array('status' => $status), $data);
