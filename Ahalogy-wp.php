@@ -3,7 +3,7 @@
 Plugin Name: Ahalogy
 Plugin URI: https://app.ahalogy.com/
 Description: Inserts the Ahalogy snippet into your website
-Version: 1.1.7
+Version: 1.2.0
 Author: Ahalogy
 Author URI: http://www.ahalogy.com
 License: GPLv3
@@ -19,14 +19,15 @@ class ahalogyWP {
 	var $plugin_homepage = 'https://app.ahalogy.com/';
 	var $plugin_name = 'Ahalogy';
 	var $plugin_textdomain = 'ahalogyWP';
-	var $plugin_version = '1.1.7';	
+	var $plugin_version = '1.2.0';	
   var $plugin_api_key = 'VdJXFxivKY9PEyuwN2P';
 	var $mobilify_environment = 'development';
 	var $mobilify_js_domain = 'https://w.ahalogy.com';
 	var $widget_js_domain = '//w.ahalogy.com';
 	var $mobilify_api_domain = 'https://app.ahalogy.com';
   var $date_format = 'c';
-  var $display_none = false;
+  var $cached_mobilify_template_time = 1800; //30 minutes
+  var $cached_mobilify_request_limit = 300; //5 minutes
 
 	// constructor
 	function ahalogyWP() {
@@ -96,11 +97,20 @@ class ahalogyWP {
 		$input['mobilify_api_optin'] = (( isset($input['mobilify_api_optin']) && ( $input['mobilify_api_optin'] )) ? 1 : 0 ); // (checkbox) if TRUE then 1, else NULL
 		$input['mobilify_optin'] = (( isset($input['mobilify_optin']) && ( $input['mobilify_optin'] )) ? 1 : 0 ); // (checkbox) if TRUE then 1, else NULL
 
-
 		//Check if the mobility_optin has changed or not
 		$current_options = $this->optionsGetOptions();
 
 		if ($current_options['client_id']) {
+
+			//Check if client_id has changed. If so, clear any mobilify cache by deleting the 'ahalogy_js_template' option
+			if ((isset($current_options['mobilify_optin'])) && (isset($input['mobilify_optin']))) {
+				if ($current_options['client_id'] <> $input['client_id']) {
+					//Client IDs are different. Clear the cache.
+					delete_option("ahalogy_js_template");
+				}
+			}
+
+
 			if ((isset($current_options['mobilify_optin'])) && (isset($input['mobilify_optin']))) {
 				if ($current_options['mobilify_optin'] <> $input['mobilify_optin']) {
 					if ($input['mobilify_optin']) {
@@ -237,23 +247,22 @@ Ahalogy wordpress plugin [version %1$s] is installed but widget code is turned o
   window[a_]={c:o,b:g,u:l};var s=a.createElement(h);s.src=l,e=a.getElementsByTagName(h)[0];e.parentNode.insertBefore(s,e);
   })(document,"script","_ahalogy","%3$s/",{client:"%2$s"});
 </script>
-'
-	,
-		$this->plugin_version
-	,
-		$options['client_id']
+'		,
+			$this->plugin_version
 		,
-        $this->widget_js_domain
-	);
+			$options['client_id']
+			,
+	        $this->widget_js_domain
+		);
 
-	// build code
+		// build code
 
-	if( !$options['insert_code'] || strlen($options['client_id'])<10)
-		echo $disabled;
-	else
-		echo $widget_code ;
+		if ( ( !$options['insert_code'] || strlen($options['client_id']) < 10) ) {
+			echo $disabled;
+		} else {
+			echo $widget_code;
+		}
 	}
-
 
 	/**
 	 * Generic function to show a message to the user using WP's 

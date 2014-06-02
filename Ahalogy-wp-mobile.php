@@ -21,49 +21,133 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
       add_action( 'admin_init', array( &$this, 'mobilifyOptinCheck' ) ); // mobile reqs check
 
 
-      if (( isset($options)) && (isset($options['mobilify_api_optin'])) && ($options['mobilify_api_optin'])) {
+      if (( isset($options)) && ( isset($options['mobilify_api_optin'] )) && ($options['mobilify_api_optin'])) {
         add_action( 'admin_init', array( &$this, 'ahalogyMobileCheck' ) ); // mobile reqs check
         add_action( 'save_post', array( &$this, 'updateMobilePost' ) ); 
       }
 
       if (( isset($options)) && (isset($options['mobilify_optin'])) && ($options['mobilify_optin'])) {
+        add_action( 'wp_head', array( &$this, 'getMobilifyPluginComment' ), 1 );
         add_action( 'wp_head', array( &$this, 'getMobilifyHeaderCode' ), 1 );
       }
   }   
 
+  function getMobilifyPluginComment() {
+    //Insert a HTML comment with the plugin version regardless of page
+    global $ahalogyWP_instance;    
+    $ahalogy_comment = sprintf( '<!-- Ahalogy Mobilify enabled [plugin version %1$s] -->
+      ', 
+      $ahalogyWP_instance->plugin_version
+    );
+    
+    echo $ahalogy_comment;
+  }
+
   function getMobilifyHeaderCode() {
     global $ahalogyWP_instance;
     global $post;
+    
+    $options = $ahalogyWP_instance->optionsGetOptions();
 
-    if (is_single()) {
-      $options = $ahalogyWP_instance->optionsGetOptions();
-      if ($ahalogyWP_instance->display_none) {
-        $css_rule = '<style type="text/css">body{display:none;}</style>';
-      } else {
-        $css_rule = '';
+    // Mobilify widget code
+    if( $options['mobilify_optin'] && strlen($options['client_id']) >= 10) {
+      if (is_single()) {
+
+        // Check to see if the mobilify javascript is cached.
+        // If the cached javascript has not expired, use it. Otherwise, grab a new version   
+
+        $cached_snippet = get_option('ahalogy_js_template');
+
+        $bypass_cache = false;
+        $print_debug_comment = false;
+
+        // See if we should bypass the caching if the debug param has been sent.
+        if ( ( isset( $_REQUEST['ahalogy_snippet_debug'] ) && ( $_REQUEST['ahalogy_snippet_debug'] == 1 ) ) ) {
+          
+          //Verify API key
+          if ( (isset($_REQUEST['api_key'])) && ($_REQUEST['api_key'] == $ahalogyWP_instance->plugin_api_key) ) {
+            $bypass_cache = true;
+            $print_debug_comment = true;
+          }
+        }
+
+        //Should we use the cache?
+        $last_request = get_option('ahalogy_snippet_last_request');
+        
+        if (!$last_request) {
+          $bypass_cache = true;
+        } else {
+          if ( ( $last_request ) && ( time() - $last_request > $ahalogyWP_instance->cached_mobilify_request_limit ) ) {
+            if ( !isset($cached_snippet) ) {
+              $bypass_cache = true;
+            } else {
+              if (!isset($cached_snippet['timestamp'])) {
+                $bypass_cache = true;
+              } else {
+                if  ( time() - $cached_snippet['timestamp'] > $ahalogyWP_instance->cached_mobilify_template_time ) {
+                  $bypass_cache = true;
+                }
+              }
+            }
+          }
+        }
+
+        if ( !$bypass_cache ) {
+          
+          // echo '1';
+          // Cached template is still valid. Print to page.
+          if ($cached_snippet["snippet"]) {
+            echo stripslashes($cached_snippet["snippet"]);
+          }
+        } else {
+
+          // echo '2';
+          // Cache is invalid or not set. Get the template from Ahalogy
+          $snippet_url = $ahalogyWP_instance->mobilify_js_domain . '/mobilify/client/' . $options['client_id'] . '/snippet-template';
+
+          $js_response = wp_remote_get( $snippet_url, array( 'timeout' => 3 ) );
+
+          // Regardless of the response, store a timestamp of when we made the request so we can wait 5 minutes.
+          update_option('ahalogy_snippet_last_request', time());
+
+          if( is_wp_error( $js_response ) ) {
+            //There was an error getting a response from Ahalogy. Print the error message in an HTML comment
+            if ($print_debug_comment) {
+              echo "<!-- Ahalogy Mobilify JS Response (error): " . $js_response->get_error_message() . " -->";
+            }
+          } else if ( ( isset($js_response["response"]["code"] ) ) && ( $js_response["response"]["code"] == '200') && (isset($js_response['body']))) {
+            // Get the snippet
+            
+            $snippet = $js_response['body'];
+            $snippet = str_replace('${client_id}', $options['client_id'], $snippet);
+            $snippet = str_replace('${post_id}', $post->ID, $snippet);    
+
+            // If debugging, print response
+            if ($print_debug_comment) {
+              $printable_js_response = str_replace("-->", "", $js_response);
+              echo "<!-- Ahalogy Mobilify JS Response (success): " . var_export($printable_js_response, TRUE) . " -->";          
+            }
+
+            // Print the snippet on the page
+            echo $snippet;
+
+            // Update the cached snippet
+            $snippet_option_array = array(
+              'snippet' => addslashes($snippet),
+              'timestamp' =>  time()
+            );
+
+            update_option('ahalogy_js_template', $snippet_option_array);
+          } else {
+            // If debugging, print response
+            if ($print_debug_comment) {
+              $printable_js_response = str_replace("-->", "", $js_response);
+              echo "<!-- Ahalogy Mobilify JS Response (not accepted): " . var_export($printable_js_response, TRUE) . " -->";          
+            }
+          }
+        }
       }
-
-      // Mobilify widget code
-      $widget_code = sprintf( '
-%2$s
-<script data-cfasync="false" type="text/javascript" src="%3$s/mobilify.js" id="mobilify-loader" data-client="%4$s" data-article="%5$s">/* generated by Ahalogy wordpress plugin [version %1$s] */</script>
-'
-      ,
-        $ahalogyWP_instance->plugin_version
-      ,
-        $css_rule
-      ,
-        $ahalogyWP_instance->mobilify_js_domain      
-      ,
-        $options['client_id']
-      ,
-        $post->ID
-      );
-
-      // build code
-      if( $options['insert_code'] && strlen($options['client_id'])>=10)
-        echo $widget_code;
-    }   
+    }
   }   
       
   // Ping ahalogy when a post when it is saved or updated. Update the post meta field 'ahalogy_response' when their response
@@ -85,7 +169,7 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
       } 
 
       //Here is where we will ping ahalogy's servers with new post information.
-      if ($options['client_id']) {
+      if ( ( $options['client_id'] ) && ( isset($options['mobilify_api_optin']) ) && ( $options['mobilify_api_optin'] ) ) {
         $url = $ahalogyWP_instance->mobilify_api_domain . '/api/articles/notify_changed/' . $options['client_id'] . '/' . $post_id;
 
         $response = wp_remote_post( $url, array(

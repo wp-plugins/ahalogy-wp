@@ -2,9 +2,9 @@
 Plugin URI: www.ahalogy.com
 Contributors: Ahalogy
 Tags: pinterest, ahalogy
-Requires at least: 2.8
-Tested up to: 3.8.1
-Stable tag: 1.1.7
+Requires at least: 3.0
+Tested up to: 3.9.1
+Stable tag: 1.2.0
 
 Lets Ahalogy calibrate your pin scheduling and show engagements to your visitors.
 
