@@ -3,7 +3,7 @@
 Plugin Name: Ahalogy
 Plugin URI: https://app.ahalogy.com/
 Description: Inserts the Ahalogy snippet into your website
-Version: 1.2.0
+Version: 1.2.1
 Author: Ahalogy
 Author URI: http://www.ahalogy.com
 License: GPLv3
@@ -19,15 +19,15 @@ class ahalogyWP {
 	var $plugin_homepage = 'https://app.ahalogy.com/';
 	var $plugin_name = 'Ahalogy';
 	var $plugin_textdomain = 'ahalogyWP';
-	var $plugin_version = '1.2.0';	
-  var $plugin_api_key = 'VdJXFxivKY9PEyuwN2P';
+	var $plugin_version = '1.2.1';	
+	var $plugin_api_key = 'VdJXFxivKY9PEyuwN2P';
 	var $mobilify_environment = 'development';
 	var $mobilify_js_domain = 'https://w.ahalogy.com';
 	var $widget_js_domain = '//w.ahalogy.com';
 	var $mobilify_api_domain = 'https://app.ahalogy.com';
-  var $date_format = 'c';
-  var $cached_mobilify_template_time = 1800; //30 minutes
-  var $cached_mobilify_request_limit = 300; //5 minutes
+	var $date_format = 'c';
+	var $cached_mobilify_template_time = 1800; //30 minutes
+	var $cached_mobilify_request_limit = 300; //5 minutes
 
 	// constructor
 	function ahalogyWP() {
@@ -45,6 +45,11 @@ class ahalogyWP {
 
 	}	
 
+	//Clear mobilify cache on activation (and upgrade)
+	function ahalogy_activate() {
+		delete_option('ahalogy_snippet_last_request');
+		delete_option('ahalogy_js_template');
+	}
 
 	// load i18n textdomain
 	function loadTextDomain() {
@@ -307,6 +312,8 @@ Ahalogy wordpress plugin [version %1$s] is installed but widget code is turned o
 endif; // end collision check
 
 $ahalogyWP_instance = new ahalogyWP;
+
+register_activation_hook( __FILE__, array('ahalogyWP', 'ahalogy_activate') );
 
 include_once dirname(__FILE__) . '/Ahalogy-wp-mobile.php';
 include_once dirname(__FILE__) . '/Ahalogy-wp-mobile-post.php';

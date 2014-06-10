@@ -94,16 +94,19 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
 
         if ( !$bypass_cache ) {
           
-          // echo '1';
+          // echo 'CACHED';
           // Cached template is still valid. Print to page.
           if ($cached_snippet["snippet"]) {
-            echo stripslashes($cached_snippet["snippet"]);
+            $snippet = stripslashes($cached_snippet["snippet"]);
+            $snippet = str_replace('${client_id}', $options['client_id'], $snippet);
+            $snippet = str_replace('${post_id}', $post->ID, $snippet);                
+            echo $snippet;
           }
         } else {
 
-          // echo '2';
+          // echo 'NOT CACHED';
           // Cache is invalid or not set. Get the template from Ahalogy
-          $snippet_url = $ahalogyWP_instance->mobilify_js_domain . '/mobilify/client/' . $options['client_id'] . '/snippet-template';
+          $snippet_url = $ahalogyWP_instance->mobilify_js_domain . '/mobilify/client/' . $options['client_id'] . '/snippet-template?pv=' . $ahalogyWP_instance->plugin_version;
 
           $js_response = wp_remote_get( $snippet_url, array( 'timeout' => 3 ) );
 
@@ -133,7 +136,7 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
 
             // Update the cached snippet
             $snippet_option_array = array(
-              'snippet' => addslashes($snippet),
+              'snippet' => addslashes($js_response['body']),
               'timestamp' =>  time()
             );
 
