@@ -17,9 +17,7 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
       }
 
       add_action( 'template_redirect', array(&$this, 'jsonTemplateRedirect'));
-
       add_action( 'admin_init', array( &$this, 'mobilifyOptinCheck' ) ); // mobile reqs check
-
 
       if (( isset($options)) && ( isset($options['mobilify_api_optin'] )) && ($options['mobilify_api_optin'])) {
         add_action( 'admin_init', array( &$this, 'ahalogyMobileCheck' ) ); // mobile reqs check
@@ -68,8 +66,10 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
           if ( (isset($_REQUEST['api_key'])) && ($_REQUEST['api_key'] == $ahalogyWP_instance->plugin_api_key) ) {
             $bypass_cache = true;
             $print_debug_comment = true;
+            $ahalogyWP_instance->clearCache();
           }
         }
+
 
         //Should we use the cache?
         $last_request = get_option('ahalogy_snippet_last_request');
