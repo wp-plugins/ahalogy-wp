@@ -17,7 +17,7 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
       }
 
       add_action( 'template_redirect', array(&$this, 'jsonTemplateRedirect'));
-      add_action( 'admin_init', array( &$this, 'mobilifyOptinCheck' ) ); // mobile reqs check
+      add_action( 'admin_init', array( &$this, 'mobilifyOptionsCheck' ) ); // mobile reqs check
 
       if (( isset($options)) && ( isset($options['mobilify_api_optin'] )) && ($options['mobilify_api_optin'])) {
         add_action( 'admin_init', array( &$this, 'ahalogyMobileCheck' ) ); // mobile reqs check
@@ -207,15 +207,45 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
     }
   }
 
-  //Check that the mobilify_optin option is set. If not, set it and default to 1
-  function mobilifyOptinCheck() {
+  //Check that the mobilify options are set.
+  function mobilifyOptionsCheck() {
+    
+    // Get options
     global $ahalogyWP_instance;
     $options = $ahalogyWP_instance->optionsGetOptions();
 
+    // Check for mobilify_api_optin
     if (!isset($options['mobilify_api_optin'])) {
       $options['mobilify_api_optin'] = 1;
       //register_setting( $ahalogyWP_instance->options_group, $ahalogyWP_instance->options_name, array( &$this, 'optionsValidate' ) );
       update_option( $ahalogyWP_instance->options_name, $options );
+    }
+
+    // Check if Google Analytics ID is stored
+    if (!isset($options['google_analytics_id'])) {
+
+      //Option is not set. Get the homepage HTML and parse it for the GA code.
+      $ga_response = wp_remote_get( home_url(), array( 'timeout' => 3 ) );  
+      
+      if(isset($ga_response['body'])) {
+        $homehtml = $ga_response['body'];
+        $homehtml = str_replace(' ', '', $homehtml);
+        $gaposone = strpos($homehtml, "ga('create','");
+        $gapostwo = strpos($homehtml, "_gaq.push(['_setAccount','");
+
+        if ($gaposone) {
+          $trackingid = substr($homehtml, $gaposone+13, 13);
+        } else if ($gapostwo) {
+          $trackingid = substr($homehtml, $gapostwo+26, 13);
+        }
+
+        if (isset($trackingid)) {
+          // One of the two GA strings have been found. Get the next 13 characters for the GA Tracking ID
+          $updatedoptions = $options;
+          $updatedoptions['google_analytics_id'] = $trackingid;
+          update_option($ahalogyWP_instance->options_name, $updatedoptions);
+        }
+      }
     }
   }
 
@@ -315,7 +345,7 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
             
             if (isset($options)) {
               foreach ($options as $key => $value) {
-                if (isset($_REQUEST[$key])) {                  
+                if (isset($_REQUEST[$key])) {
 
                   if (in_array($key, array('insert_code','mobilify_api_optin','mobilify_optin'))) {
                     //boolean
@@ -333,6 +363,12 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
                   } else if (in_array($key, array('location'))) {
                     //string
                     if (in_array($_REQUEST[$key], array('head','body'))) {
+                      $updatedoptions[$key] = sanitize_text_field($_REQUEST[$key]);
+                    }
+                  } else if (in_array($key, array('google_analytics_id'))) {
+                    //string
+                    $galength = strlen($_REQUEST[$key]);
+                    if ($galength == 13) {
                       $updatedoptions[$key] = sanitize_text_field($_REQUEST[$key]);
                     }
                   }
