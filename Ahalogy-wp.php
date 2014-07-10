@@ -3,7 +3,7 @@
 Plugin Name: Ahalogy
 Plugin URI: https://app.ahalogy.com/
 Description: Inserts the Ahalogy snippet into your website
-Version: 1.2.4
+Version: 1.2.5
 Author: Ahalogy
 Author URI: http://www.ahalogy.com
 License: GPLv3
@@ -19,7 +19,7 @@ class ahalogyWP {
 	var $plugin_homepage = 'https://app.ahalogy.com/';
 	var $plugin_name = 'Ahalogy';
 	var $plugin_textdomain = 'ahalogyWP';
-	var $plugin_version = '1.2.4';
+	var $plugin_version = '1.2.5';
 	var $plugin_api_key = 'VdJXFxivKY9PEyuwN2P';
 	var $mobilify_environment = 'development';
 	var $mobilify_js_domain = 'https://w.ahalogy.com';

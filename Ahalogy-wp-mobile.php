@@ -184,15 +184,16 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
           'headers' => array(),
           'body' => array( 'url' => get_permalink($post_id), 'modified_at' => get_post_modified_time($ahalogyWP_instance->date_format, true, $post_id) ),
           'cookies' => array()
-            )
+          )
         );
 
         if ( is_wp_error( $response ) ) {
           //Setting the error but we won't do anything with it for now.
           $error_message = $response->get_error_message();
-           //print_r( $error_message );
+          if ($print_debug_comment) {
+            echo "<!-- Ahalogy check for Ahalogy API notify change post: " . $response->get_error_message() . " -->";
+          }
         } else {
-           //print_r( $response );
            update_post_meta( $post_id, 'ahalogy_response', sanitize_text_field( time() ) );
         }
       }        
@@ -227,7 +228,12 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
       //Option is not set. Get the homepage HTML and parse it for the GA code.
       $ga_response = wp_remote_get( home_url(), array( 'timeout' => 3 ) );  
       
-      if(isset($ga_response['body'])) {
+      if( is_wp_error( $ga_response ) ) {
+        //There was an error getting a response from the blog. Print the error message in an HTML comment
+        if ($print_debug_comment) {
+          echo "<!-- Ahalogy check for GA code error: " . $ga_response->get_error_message() . " -->";
+        }
+      } else if(isset($ga_response['body'])) {
         $homehtml = $ga_response['body'];
         $homehtml = str_replace(' ', '', $homehtml);
         $gaposone = strpos($homehtml, "ga('create','");
