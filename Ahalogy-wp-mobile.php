@@ -153,7 +153,7 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
     }
   }   
       
-  // Ping ahalogy when a post when it is saved or updated. Update the post meta field 'ahalogy_response' when their response
+  // Ping ahalogy when a post is saved or updated. Update the post meta field 'ahalogy_response' when their response
   function updateMobilePost( $post_id ) {
     global $ahalogyWP_instance;
     $options = $ahalogyWP_instance->optionsGetOptions();
@@ -168,35 +168,49 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
 
       // If this is just a revision, don't do anything
       if ((wp_is_post_revision($post_id)) || ($_POST['post_status'] != 'publish') || ($_POST['visibility'] != 'public')) {
-          return;
+        return;
       } 
 
-      //Here is where we will ping ahalogy's servers with new post information.
+      // Here is where we will ping ahalogy's servers with new post information.
       if ( ( $options['client_id'] ) && ( isset($options['mobilify_api_optin']) ) && ( $options['mobilify_api_optin'] ) ) {
-        $url = $ahalogyWP_instance->mobilify_api_domain . '/api/articles/notify_changed/' . $options['client_id'] . '/' . $post_id;
+        
+        // First we need to check that we've pasted the cache time for this post.
+        $last_update = get_post_meta( $post_id, 'ahalogy_response', TRUE );
+        
+        $ping_ahalogy = false;
 
-        $response = wp_remote_post( $url, array(
-          'method' => 'POST',
-          'timeout' => 10,
-          'redirection' => 5,
-          'httpversion' => '1.0',
-          'blocking' => true,
-          'headers' => array(),
-          'body' => array( 'url' => get_permalink($post_id), 'modified_at' => get_post_modified_time($ahalogyWP_instance->date_format, true, $post_id) ),
-          'cookies' => array()
-          )
-        );
-
-        if ( is_wp_error( $response ) ) {
-          //Setting the error but we won't do anything with it for now.
-          $error_message = $response->get_error_message();
-          if ($print_debug_comment) {
-            echo "<!-- Ahalogy check for Ahalogy API notify change post: " . $response->get_error_message() . " -->";
-          }
-        } else {
-           update_post_meta( $post_id, 'ahalogy_response', sanitize_text_field( time() ) );
+        if (!$last_update) {
+          $ping_ahalogy = true;
+        } else if ( time() - $last_update > $ahalogyWP_instance->cached_mobilify_request_limit )  {
+          $ping_ahalogy = true;
         }
-      }        
+
+        if ($ping_ahalogy) {
+          $url = $ahalogyWP_instance->mobilify_api_domain . '/api/articles/notify_changed/' . $options['client_id'] . '/' . $post_id;
+
+          $response = wp_remote_post( $url, array(
+            'method' => 'POST',
+            'timeout' => 10,
+            'redirection' => 5,
+            'httpversion' => '1.0',
+            'blocking' => true,
+            'headers' => array(),
+            'body' => array( 'url' => get_permalink($post_id), 'modified_at' => get_post_modified_time($ahalogyWP_instance->date_format, true, $post_id) ),
+            'cookies' => array()
+            )
+          );
+          
+          update_post_meta( $post_id, 'ahalogy_response', sanitize_text_field( time() ) );
+
+          if ( is_wp_error( $response ) ) {
+            //Setting the error but we won't do anything with it for now.
+            $error_message = $response->get_error_message();
+            if ($print_debug_comment) {
+              echo "<!-- Ahalogy check for Ahalogy API notify change post: " . $response->get_error_message() . " -->";
+            }
+          }
+        } 
+      }
     }
   }
   
@@ -220,38 +234,6 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
       $options['mobilify_api_optin'] = 1;
       //register_setting( $ahalogyWP_instance->options_group, $ahalogyWP_instance->options_name, array( &$this, 'optionsValidate' ) );
       update_option( $ahalogyWP_instance->options_name, $options );
-    }
-
-    // Check if Google Analytics ID is stored
-    if (!isset($options['google_analytics_id'])) {
-
-      //Option is not set. Get the homepage HTML and parse it for the GA code.
-      $ga_response = wp_remote_get( home_url(), array( 'timeout' => 3 ) );  
-      
-      if( is_wp_error( $ga_response ) ) {
-        //There was an error getting a response from the blog. Print the error message in an HTML comment
-        if ($print_debug_comment) {
-          echo "<!-- Ahalogy check for GA code error: " . $ga_response->get_error_message() . " -->";
-        }
-      } else if(isset($ga_response['body'])) {
-        $homehtml = $ga_response['body'];
-        $homehtml = str_replace(' ', '', $homehtml);
-        $gaposone = strpos($homehtml, "ga('create','");
-        $gapostwo = strpos($homehtml, "_gaq.push(['_setAccount','");
-
-        if ($gaposone) {
-          $trackingid = substr($homehtml, $gaposone+13, 13);
-        } else if ($gapostwo) {
-          $trackingid = substr($homehtml, $gapostwo+26, 13);
-        }
-
-        if (isset($trackingid)) {
-          // One of the two GA strings have been found. Get the next 13 characters for the GA Tracking ID
-          $updatedoptions = $options;
-          $updatedoptions['google_analytics_id'] = $trackingid;
-          update_option($ahalogyWP_instance->options_name, $updatedoptions);
-        }
-      }
     }
   }
 
@@ -338,6 +320,12 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
               }
             }
 
+            // Return the registered post types
+            $registered_post_types = get_post_types();
+            foreach ($registered_post_types as $post_type) {
+              $response['registered_post_types'][] = $post_type;
+            }
+
             $this->respond($response); 
           }
 
@@ -371,12 +359,6 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
                     if (in_array($_REQUEST[$key], array('head','body'))) {
                       $updatedoptions[$key] = sanitize_text_field($_REQUEST[$key]);
                     }
-                  } else if (in_array($key, array('google_analytics_id'))) {
-                    //string
-                    $galength = strlen($_REQUEST[$key]);
-                    if ($galength == 13) {
-                      $updatedoptions[$key] = sanitize_text_field($_REQUEST[$key]);
-                    }
                   }
                 } 
               }
@@ -396,6 +378,15 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
               //Pagination
               $paged = (isset($_GET["page"]) && $_GET['page'] !== '') ? $_GET["page"] : 1;
               $count = (isset($_GET["rpp"]) && $_GET['rpp'] !== '') ? $_GET["rpp"] : 100;
+              
+              $post_types = array();
+
+              if (isset($_GET["post_types"]) && $_GET['post_types']) {
+                $post_type = explode(',', $_GET["post_types"]);
+              } else {
+                $post_type = 'post';
+              }
+              
 
               // Arguments for WP_Query
               $args = 
@@ -403,7 +394,8 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
                   'posts_per_page' => $count,
                   'paged' => $paged,
                   'orderby' => 'modified',
-                  'order' => 'DESC'
+                  'order' => 'DESC',
+                  'post_type' => $post_type
                 );  
 
               //Check for modified_since date parameter
