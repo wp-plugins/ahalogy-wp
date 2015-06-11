@@ -3,7 +3,7 @@
 Plugin Name: Ahalogy
 Plugin URI: https://app.ahalogy.com/
 Description: Inserts the Ahalogy snippet into your website
-Version: 1.2.7
+Version: 1.2.8
 Author: Ahalogy
 Author URI: http://www.ahalogy.com
 License: GPLv3
@@ -19,7 +19,7 @@ class ahalogyWP {
 	var $plugin_homepage = 'https://app.ahalogy.com/';
 	var $plugin_name = 'Ahalogy';
 	var $plugin_textdomain = 'ahalogyWP';
-	var $plugin_version = '1.2.7';
+	var $plugin_version = '1.2.8';
 	var $plugin_api_key = 'VdJXFxivKY9PEyuwN2P';
 	var $mobilify_environment = 'development';
 	var $mobilify_js_domain = 'https://w.ahalogy.com';
@@ -158,83 +158,313 @@ class ahalogyWP {
 		return $input;
 	}
 
-	// draw a checkbox option
-	function optionsDrawCheckbox( $slug, $label, $style_checked='', $style_unchecked='' ) {
-		$options = $this->optionsGetOptions();
-		$defaults = $this->optionsGetDefaults();
-
-		if (!isset($options[$slug])) {	
-			//index isn't identified. set the default
-			$options[$slug] = $defaults[$slug];
-		}
-
-		if( !$options[$slug] ) {
-			if( !empty( $style_unchecked ) ) $style = ' style="' . $style_unchecked . '"';
-			else $style = '';
-		} else {
-			if( !empty( $style_checked ) ) $style = ' style="' . $style_checked . '"';
-			else $style = '';
-		}
-	?>
-		 <!-- <?php _e( $label, $this->plugin_textdomain ); ?> -->
-			<tr valign="top">
-				<th scope="row">
-					<label<?php echo $style; ?> for="<?php echo $this->options_name; ?>[<?php echo $slug; ?>]">
-						<?php _e( $label, $this->plugin_textdomain ); ?>
-					</label>
-				</th>
-				<td>
-					<input name="<?php echo $this->options_name; ?>[<?php echo $slug; ?>]" type="checkbox" value="1" <?php checked( $options[$slug], 1 ); ?>/>
-				</td>
-			</tr>
-
-	<?php }
-
 	// draw the options page
 	function optionsDrawPage() { ?>
+    <style>
+      /* AHALOGY PLUGIN SETTINGS STYLE */
+
+      /* Typefaces */
+      @font-face {
+        font-family: 'futurabook';
+        src: url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/futuralt-book-webfont.eot');
+        src: url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/futuralt-book-webfont.eot?#iefix') format('embedded-opentype'),
+          url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/futuralt-book-webfont.woff') format('woff'),
+          url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/futuralt-book-webfont.ttf') format('truetype'),
+          url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/futuralt-book-webfont.svg#futurabook') format('svg');
+        font-weight: normal;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: 'futurabold';
+        src: url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/futuralt-bold-webfont.eot');
+        src: url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/futuralt-bold-webfont.eot?#iefix') format('embedded-opentype'),
+          url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/futuralt-bold-webfont.woff') format('woff'),
+          url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/futuralt-bold-webfont.ttf') format('truetype'),
+          url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/futuralt-bold-webfont.svg#futurabold') format('svg');
+        font-weight: normal;
+        font-style: normal;
+      }
+      
+      @font-face {
+        font-family: 'freight-text-book';
+        src: url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/freight-text-book.eot');
+        src: url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/freight-text-book.eot?#iefix') format('embedded-opentype'),
+          url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/freight-text-book.woff') format('woff'),
+          url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/freight-text-book.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
+      
+      @font-face {
+        font-family: 'freight-text-bold';
+        src: url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/freight-text-bold.eot');
+        src: url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/freight-text-bold.eot?#iefix') format('embedded-opentype'),
+          url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/freight-text-bold.woff') format('woff'),
+          url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/freight-text-bold.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
+      
+      @font-face {
+        font-family: 'freight-text-book-italic';
+        src: url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/freight-text-book-italic.eot');
+        src: url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/freight-text-book-italic.eot?#iefix') format('embedded-opentype'),
+          url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/freight-text-book-italic.woff') format('woff'),
+          url('//s3.amazonaws.com/pingage-images/engagements/_default/poster/fonts/freight-text-book-italic.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
+
+      /* Style */
+      html {
+        background: #f4f4f4;
+      }
+      
+      body {
+      }
+
+      .wrap {
+        width: 480px;
+        padding: 64px 0 0 64px;
+        font-familiy: 'futurabook' !important;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        -moz-font-feature-settings: "liga" on;
+        color: #2d2d2d !important;
+      }
+
+      .wrap h2 {
+        font-family: 'futurabook';
+        font-size: 24px;
+        font-weight: 400;
+        line-height: 3rem;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        vertical-align: middle;
+      }
+      
+      .ahalogyIcon {
+        width: 3rem;
+        height: 3rem;
+        display: inline-block;
+        background-image: url("https://res.cloudinary.com/ahalogy/image/upload/v1420732046/ahalogyRedHollowIcon_yedsim.png");
+        background-repeat: no-repeat;
+        background-size: 100% 100%;
+        background-position: center center;
+        opacity: 1;
+        text-align: left;
+        text-indent: 99999px;
+        white-space: nowrap;
+        overflow: hidden;
+        user-select: none;
+        text-decoration: none;
+        margin-right: 1rem;
+        vertical-align: middle;
+        position: relative;
+        top: -3px;
+      }
+      
+      .ahalogyIcon:hover,
+      .ahalogyIcon:focus,
+      .ahalogyIcon:active {
+        background-image: url("https://res.cloudinary.com/ahalogy/image/upload/v1420732046/ahalogyRedFullIcon_nlmpn5.png");
+        outline: none;
+      }
+      
+      .separator {
+        height: 1px;
+        width: 128px;
+        background-color: #c6c6c6;
+        margin: 32px 0;
+      }
+      
+      .formWrap {
+        margin-bottom: 80px;
+      }
+      
+      p {
+        font-family: 'freight-text-book';
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 1.55555;
+        letter-spacing: 0.05em;
+        margin: 0 0 1rem 0;
+        padding: 0;
+      }
+      
+      p.lede {
+        font-size: 24px;
+        line-height: 1.2857142857;
+      }
+      
+      .formGroup {
+        margin: 2rem 0;
+      }
+      
+      .formGroup.hidden {
+        visibility: hidden;
+      }
+      
+      .generalInputLabel {
+        display: block;
+        font-family: 'futurabold';
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1.2857142857;
+        letter-spacing: .15em;
+        color: #2d2d2d;
+        text-transform: uppercase;
+        margin-bottom: 0.4rem;
+      }
+      
+      input[type="text"].generalInput {
+        display: block;
+        font-family: 'freight-text-book';
+        font-size: 18px;
+        font-weight: 400;
+        letter-spacing: 0.05em;
+        color: #2d2d2d;
+        text-transform: none;
+        text-decoration: none;
+        padding: 1.375rem;
+        background: white;
+        border: 2px solid white;
+        outline: none;
+        position: relative;
+        -webkit-appearance: none;
+        appearance: none;
+        -webkit-box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        box-sizing: border-box;
+        -webkit-box-shadow: none !important;
+        -moz-box-shadow: none !important;
+        box-shadow: none !important;
+        -webkit-transition:.1s border-color,.1s color;
+        height: auto;
+        width: 100%;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+      }
+      
+      input[type="text"].generalInput:hover,
+      input[type="text"].generalInput:focus,
+      input[type="text"].generalInput:active {
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        border: 2px solid #1b5d7e;
+      }
+      
+      .btn {
+        display: inline-block;
+        padding: .75rem 1.5rem;
+        border: 2px solid #2d2d2d;
+        background: transparent;
+        cursor: pointer;
+        font-family: 'futurabold';
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        color: #2d2d2d;
+        text-transform: uppercase;
+        text-decoration: none;
+        text-align: center;
+        -webkit-box-shadow: 0 !important;
+        -moz-box-shadow: 0 !important;
+        box-shadow: 0 !important;
+        -webkit-transition: .1s;
+        -moz-transition: .1s;
+        transition: .1s;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        user-select: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        -moz-font-feature-settings: "liga" on;
+      }
+    
+      .btn:hover,
+      .btn:focus,
+      .btn:active {
+        background: #2d2d2d;
+        color: white;
+        outline: none;
+      }
+      
+      .btn--primary {
+        border-color: #1b5d7e;
+        background: #1b5d7e;
+        color: white;
+      }
+      
+      .btn--primary:hover,
+      .btn--primary:focus {
+        background: #28759c;
+        border-color: #28759c;
+      }
+
+      .btn--primary:active {
+        background: #436476;
+        border-color: #436476;
+      }
+      
+      .formFieldExplanation {
+        display: block;
+        text-align: left;
+        font-family: 'freight-text-book-italic';
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 1.2857142857;
+        letter-spacing: 0.025em;
+        font-style: italic;
+        color: #626262;
+        margin-top: .5em;
+      }
+  
+      .formFieldExplanation a {
+        color: #1b5d7e;
+        outline: none;
+      }
+      
+      .formFieldExplanation a:focus,
+      .formFieldExplanation a:hover,
+      .formFieldExplanation a:active {
+        text-decoration: underline;
+      }
+    </style>
 		<div class="wrap">
 		<div class="icon32" id="icon-options-general"><br /></div>
-			<h2><?php echo $this->plugin_name . __( ' Settings', $this->plugin_textdomain ); ?></h2>
-			<form name="form1" id="form1" method="post" action="options.php">
-				<?php settings_fields( $this->options_group ); // nonce settings page ?>
-				<?php $options = $this->optionsGetOptions();  //populate $options array from database ?>
+      <h2 class="pageTitle">
+        <a class="ahalogyIcon" href="https://www.ahalogy.com" target="_blank">Ahalogy</a>
+        <span>Plugin Settings</span>
+      </h2>
+      <div class="separator"></div>
+      <div class="formWrap">
+        <p>Installing the Ahalogy plugin lets you track the clicks your content received on Pinterest, plus it enables you to show engagements whenever you get a visitor from Pinterest. It's the secret weapon of the Content Network.</p>
+        <form name="form1" id="form1" method="post" action="options.php">
+          <?php settings_fields( $this->options_group ); // nonce settings page ?>
+          <?php $options = $this->optionsGetOptions();  //populate $options array from database ?>
 
-				<!-- Description -->
-				<p><a href="http://ahalogy.uservoice.com" target="_new">Ahalogy Support</a>
-				</p>
+		  <input name="ahalogy_wp_item[insert_code]" type="hidden" value="1"/>
+		  <input name="ahalogy_wp_item[location]" type="hidden" value="head" />
+		  <input name="ahalogy_wp_item[mobilify_api_optin]" type="hidden" value="1" />
+		  <input name="ahalogy_wp_item[mobilify_optin]" type="hidden" value="0" />
 
-				<table class="form-table">
+          <div class="formGroup">
+            <!-- <?php _e( 'Client ID', $this->plugin_textdomain ); ?> -->
+            <label class="generalInputLabel" for="<?php echo $this->options_name; ?>[client_id]"><?php _e( 'Client ID', $this->plugin_textdomain ); ?></label>
+            <input class="generalInput" type="text" autofocus="autofocus" placeholder="Enter your Ahalogy Client ID" name="<?php echo $this->options_name; ?>[client_id]" value="<?php echo $options['client_id']; ?>" maxlength="30" />
+            <span class="formFieldExplanation">Don't know your id? No sweat, <a href="https://app.ahalogy.com/settings/pinning/code-snippet" target="_blank">we've got it for you here</a>.</span>
+          </div>
 
-					<?php $this->optionsDrawCheckbox( 'insert_code', 'Include code snippet on my site', '', 'color:#000;' ); ?>
-
-					 <!-- <?php _e( 'Client ID', $this->plugin_textdomain ); ?> -->
-					<tr valign="top"><th scope="row"><label for="<?php echo $this->options_name; ?>[client_id]"><?php _e( 'Ahalogy Client ID', $this->plugin_textdomain ); ?>: </label></th>
-						<td>
-							<input type="text" name="<?php echo $this->options_name; ?>[client_id]" value="<?php echo $options['client_id']; ?>" style="width:200px;" maxlength="30" />
-						</td>
-					</tr>
-
-					<!-- Head/Body insert (radio buttons) -->
-					<tr valign="top"><th scope="row" valign="middle"><label for="<?php echo $this->options_name; ?>[location]"><?php _e( 'Insert Location', $this->plugin_textdomain ); ?>:</label></th>
-						<td>
-							<input name="<?php echo $this->options_name; ?>[location]" type="radio" value="head" <?php checked( $options['location'], 'head', TRUE ); ?> />
-							<?php printf( 'before %1$shead%2$s tag', '&lt;/', '&gt;' ); ?> (recommended)<br />
-							<input name="<?php echo $this->options_name; ?>[location]" type="radio" value="body" <?php checked( $options['location'], 'body', TRUE ); ?> />
-							<?php printf( 'before %1$sbody%2$s tag', '&lt;/', '&gt;' ); ?>
-						</td>
-					</tr>
-
-					<?php $this->optionsDrawCheckbox( 'mobilify_api_optin', 'Enable Ahalogy API Access', '', 'color:#000;' ); ?>
-
-					<?php $this->optionsDrawCheckbox( 'mobilify_optin', 'Enable Mobile Optimization', '', 'color:#000;' ); ?>
-
-				</table>
-				<p class="submit">
-					<input type="submit" class="button-primary" value="<?php _e( 'Save Changes', $this->plugin_textdomain ) ?>" />
-				</p>
-			</form>
-		</div>
-
+          <input type="submit" class="btn btn--primary" value="<?php _e( 'Save Changes', $this->plugin_textdomain ) ?>" />
+        </form>
+      </div>
+      <span class="formFieldExplanation">Need a hand? <a href="https://help.ahalogy.com/customer/portal/articles/1821494" target="_blank">Check out the Ahalogy Help Center</a>.</span>
+    </div>
 		<?php
 	}
 
