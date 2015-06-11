@@ -17,9 +17,8 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
       }
 
       add_action( 'template_redirect', array(&$this, 'jsonTemplateRedirect'));
-      add_action( 'admin_init', array( &$this, 'mobilifyOptionsCheck' ) ); // mobile reqs check
 
-      if (( isset($options)) && ( isset($options['mobilify_api_optin'] )) && ($options['mobilify_api_optin'])) {
+      if (( isset($options)) && ( isset($options['mobilify_optin'] )) && ($options['mobilify_optin'])) {
         add_action( 'admin_init', array( &$this, 'ahalogyMobileCheck' ) ); // mobile reqs check
         add_action( 'save_post', array( &$this, 'updateMobilePost' ) ); 
       }
@@ -172,7 +171,7 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
       } 
 
       // Here is where we will ping ahalogy's servers with new post information.
-      if ( ( $options['client_id'] ) && ( isset($options['mobilify_api_optin']) ) && ( $options['mobilify_api_optin'] ) ) {
+      if ( ( $options['client_id'] ) && ( isset($options['mobilify_optin']) ) && ( $options['mobilify_optin'] ) ) {
         
         // First we need to check that we've pasted the cache time for this post.
         $last_update = get_post_meta( $post_id, 'ahalogy_response', TRUE );
@@ -213,27 +212,12 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
       }
     }
   }
-  
+
   // Verify we can use native JSON functions
   function ahalogyMobileCheck() {
     if (phpversion() < 5) {
       add_action('admin_notices', array( &$this, 'ahalogyPHPWarning' ) );
       return;
-    }
-  }
-
-  //Check that the mobilify options are set.
-  function mobilifyOptionsCheck() {
-    
-    // Get options
-    global $ahalogyWP_instance;
-    $options = $ahalogyWP_instance->optionsGetOptions();
-
-    // Check for mobilify_api_optin
-    if (!isset($options['mobilify_api_optin'])) {
-      $options['mobilify_api_optin'] = 1;
-      //register_setting( $ahalogyWP_instance->options_group, $ahalogyWP_instance->options_name, array( &$this, 'optionsValidate' ) );
-      update_option( $ahalogyWP_instance->options_name, $options );
     }
   }
 
@@ -278,7 +262,7 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
             //Authenticate the api key
             $this->authenticateAPIKey();
 
-            if ($options['mobilify_api_optin']) {
+            if ($options['mobilify_optin']) {
               //Post is single and has the ahalogy_json parameter. Let's redirect it.
               global $post;
 
@@ -341,7 +325,7 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
               foreach ($options as $key => $value) {
                 if (isset($_REQUEST[$key])) {
 
-                  if (in_array($key, array('insert_code','mobilify_api_optin','mobilify_optin'))) {
+                  if (in_array($key, array('insert_code','mobilify_optin','mobilify_optin'))) {
                     //boolean
                     if ($_REQUEST[$key] == '0') {
                       $updatedoptions[$key] = 0;
@@ -373,7 +357,7 @@ if( !class_exists( 'ahalogyWPMobile' ) ) : // namespace collision check
           if ((isset($_REQUEST['mobilify_index'])) && ($_REQUEST['mobilify_index'] == 1)) {
             
             //Make sure mobilify is enabaled
-            if ($options['mobilify_api_optin']) {
+            if ($options['mobilify_optin']) {
 
               //Pagination
               $paged = (isset($_GET["page"]) && $_GET['page'] !== '') ? $_GET["page"] : 1;

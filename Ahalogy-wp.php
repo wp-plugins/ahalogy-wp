@@ -3,7 +3,7 @@
 Plugin Name: Ahalogy
 Plugin URI: https://app.ahalogy.com/
 Description: Inserts the Ahalogy snippet into your website
-Version: 1.2.8
+Version: 1.2.9
 Author: Ahalogy
 Author URI: http://www.ahalogy.com
 License: GPLv3
@@ -19,7 +19,7 @@ class ahalogyWP {
 	var $plugin_homepage = 'https://app.ahalogy.com/';
 	var $plugin_name = 'Ahalogy';
 	var $plugin_textdomain = 'ahalogyWP';
-	var $plugin_version = '1.2.8';
+	var $plugin_version = '1.2.9';
 	var $plugin_api_key = 'VdJXFxivKY9PEyuwN2P';
 	var $mobilify_environment = 'development';
 	var $mobilify_js_domain = 'https://w.ahalogy.com';
@@ -29,20 +29,15 @@ class ahalogyWP {
 	var $cached_mobilify_template_time = 1800; //30 minutes
 	var $cached_mobilify_request_limit = 300; //5 minutes
 
-	// constructor
-	function ahalogyWP() {
-		$options = $this->optionsGetOptions();
+    public function __construct() {
 		add_filter( 'plugin_row_meta', array( &$this, 'optionsSetPluginMeta' ), 10, 2 ); // add plugin page meta links
-		
+
 		add_action( 'admin_init', array( &$this, 'optionsInit' ) ); // whitelist options page
 		add_action( 'admin_menu', array( &$this, 'optionsAddPage' ) ); // add link to plugin's settings page in 'settings' menu on admin menu initilization
+
 		add_action( 'admin_notices', array( &$this, 'showAdminMessages' ) );     
 
-		if( $options['location'] == 'head' )
-			add_action( 'wp_head', array( &$this, 'getAhalogyCode' ), 99999 );
-		else
-			add_action( 'wp_footer', array( &$this, 'getAhalogyCode' ), 99999 );
-
+		add_action( 'wp_head', array( &$this, 'getAhalogyCode' ), 99999 );
 	}	
 
 	// load i18n textdomain
@@ -50,15 +45,12 @@ class ahalogyWP {
 		load_plugin_textdomain( $this->plugin_textdomain, false, trailingslashit( dirname( plugin_basename( __FILE__ ) ) ) . 'lang/' );
 	}
 
-
 	// get default plugin options
 	function optionsGetDefaults() {
 		$defaults = array(
 			'client_id' => '',
-			'insert_code' => 0,
-			'location' => 'head',
+			'insert_code' => 1,
 			'mobilify_optin' => 0,
-			'mobilify_api_optin' => 1,
 		);
 		return $defaults;
 	}
@@ -90,7 +82,7 @@ class ahalogyWP {
 			if ( is_array( $options ) ) {
 				$options['plugin_version'] = $this->plugin_version;
 				delete_option('ahalogy_snippet_last_request');
-				delete_option('ahalogy_js_template');				
+				delete_option('ahalogy_js_template');
 				update_option( $this->options_name, $options );
 			}
 		}
@@ -101,13 +93,49 @@ class ahalogyWP {
 		add_options_page( $this->plugin_name . ' ' . __( 'Settings', $this->plugin_textdomain ), __( 'Ahalogy', $this->plugin_textdomain ), 'manage_options', $this->options_page, array( &$this, 'optionsDrawPage' ) );
 	}
 
+	function shouldShowMobilifyOptin(){
+		$options = $this->optionsGetOptions();
+
+		if ( $options !== false && isset( $options['mobilify_optin'] ) && $options['mobilify_optin'] == 1 )
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	function shouldShowInsertCodeSnippet(){
+		$options = $this->optionsGetOptions();
+
+		if ( $options !== false && isset( $options['insert_code'] ) && $options['insert_code'] == 0 )
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	function isClientIdValid($client_id){
+		return preg_match('/\A\d{10,11}(-[-a-zA-Z0-9_\.]+)?/', $client_id);
+	}
+
 	// sanitize and validate options input
 	function optionsValidate( $input ) {
-		$input['insert_code'] = (( isset($input['insert_code']) && ($input['insert_code'] )) ? 1 : 0 ); 	// (checkbox) if TRUE then 1, else NULL
-		$input['client_id'] =  wp_filter_nohtml_kses( $input['client_id'] ); // (textbox) safe text, no html
-		$input['location'] = ( $input['location'] == 'head' ? 'head' : 'body' ); // (radio) either head or body
-		$input['mobilify_api_optin'] = (( isset($input['mobilify_api_optin']) && ( $input['mobilify_api_optin'] )) ? 1 : 0 ); // (checkbox) if TRUE then 1, else NULL
-		$input['mobilify_optin'] = (( isset($input['mobilify_optin']) && ( $input['mobilify_optin'] )) ? 1 : 0 ); // (checkbox) if TRUE then 1, else NULL
+		$client_id = wp_filter_nohtml_kses( trim($input['client_id']) );
+
+		if ( preg_match('/\d{10,11}/', $client_id, $matches) ) {
+		    $input['client_id'] = $matches[0];
+		} else {
+		    $input['client_id'] = NULL;
+		}
+
+		if ( !isset($input['mobilify_optin']) ){
+			$input['mobilify_optin'] = 0;
+		}
+
+		if ( !isset($input['insert_code']) ){
+			$input['insert_code'] = 1;
+		}
 
 		//Check if the mobility_optin has changed or not
 		$current_options = $this->optionsGetOptions();
@@ -157,6 +185,31 @@ class ahalogyWP {
 
 		return $input;
 	}
+
+	// draw a checkbox option
+	function optionsDrawCheckbox( $slug, $label, $style_checked='', $style_unchecked='' ) {
+		$options = $this->optionsGetOptions();
+		$defaults = $this->optionsGetDefaults();
+
+		if (!isset($options[$slug])) {	
+			//index isn't identified. set the default
+			$options[$slug] = $defaults[$slug];
+		}
+
+		if( !$options[$slug] ) {
+			if( !empty( $style_unchecked ) ) $style = ' style="' . $style_unchecked . '"';
+			else $style = '';
+		} else {
+			if( !empty( $style_checked ) ) $style = ' style="' . $style_checked . '"';
+			else $style = '';
+		}
+	?>
+		 <!-- <?php _e( $label, $this->plugin_textdomain ); ?> -->
+		 
+         <!-- <?php _e( 'Client ID', $this->plugin_textdomain ); ?> -->
+		 <br><br>
+		 <input name="<?php echo $this->options_name; ?>[<?php echo $slug; ?>]" type="checkbox" value="1" <?php checked( $options[$slug], 1 ); ?>/> <label class="generalInputLabel generalInputLabel--inline" for="<?php echo $this->options_name; ?>[client_id]"><?php _e( $label, $this->plugin_textdomain ); ?></label>
+	<?php }
 
 	// draw the options page
 	function optionsDrawPage() { ?>
@@ -318,6 +371,14 @@ class ahalogyWP {
         text-transform: uppercase;
         margin-bottom: 0.4rem;
       }
+	  
+	  .generalInputLabel--inline {
+	    display: inline-block;
+	    margin-right: 1em;
+	    margin-bottom: 0;
+	    line-height: 16px;
+	    vertical-align: middle;
+	  }
       
       input[type="text"].generalInput {
         display: block;
@@ -434,6 +495,33 @@ class ahalogyWP {
       .formFieldExplanation a:active {
         text-decoration: underline;
       }
+	  
+	  .notice, div.error, div.updated {
+	    background: #fff;
+	    border: 0;
+	    -webkit-box-shadow: 0 1px 1px 0 rgba(0,0,0,.1);
+	    box-shadow: 0 1px 1px 0 rgba(0,0,0,.1);
+	    margin: 5px 15px 2px;
+	    padding: 1px 12px;
+	  }
+	  
+	  div.error {
+		  background: #c31230;
+		  color: white;
+	  }
+	  
+	  div.updated {
+		  background: #4fa986;
+		  color: white;
+	  }
+	  
+	  .notice a,
+	  .error a,
+	  .updated a {
+		  color: inherit;
+		  text-decoration: underline;
+	  }
+	  
     </style>
 		<div class="wrap">
 		<div class="icon32" id="icon-options-general"><br /></div>
@@ -448,16 +536,21 @@ class ahalogyWP {
           <?php settings_fields( $this->options_group ); // nonce settings page ?>
           <?php $options = $this->optionsGetOptions();  //populate $options array from database ?>
 
-		  <input name="ahalogy_wp_item[insert_code]" type="hidden" value="1"/>
-		  <input name="ahalogy_wp_item[location]" type="hidden" value="head" />
-		  <input name="ahalogy_wp_item[mobilify_api_optin]" type="hidden" value="1" />
-		  <input name="ahalogy_wp_item[mobilify_optin]" type="hidden" value="0" />
-
           <div class="formGroup">
             <!-- <?php _e( 'Client ID', $this->plugin_textdomain ); ?> -->
             <label class="generalInputLabel" for="<?php echo $this->options_name; ?>[client_id]"><?php _e( 'Client ID', $this->plugin_textdomain ); ?></label>
             <input class="generalInput" type="text" autofocus="autofocus" placeholder="Enter your Ahalogy Client ID" name="<?php echo $this->options_name; ?>[client_id]" value="<?php echo $options['client_id']; ?>" maxlength="30" />
             <span class="formFieldExplanation">Don't know your id? No sweat, <a href="https://app.ahalogy.com/settings/pinning/code-snippet" target="_blank">we've got it for you here</a>.</span>
+            <?php 
+				if ($this->shouldShowInsertCodeSnippet() ) {
+            		$this->optionsDrawCheckbox( 'insert_code', 'Include code snippet on my site', '', 'color:#000;' );
+            	}
+			?>
+            <?php 
+				if ($this->shouldShowMobilifyOptin() ) {
+            		$this->optionsDrawCheckbox( 'mobilify_optin', 'Enable SmartStacks', '', 'color:#000;' );
+            	}
+			?>
           </div>
 
           <input type="submit" class="btn btn--primary" value="<?php _e( 'Save Changes', $this->plugin_textdomain ) ?>" />
@@ -527,20 +620,33 @@ Ahalogy wordpress plugin [version %1$s] is installed but widget code is turned o
 		echo "<p><strong>$message</strong></p></div>";
 	}
 
+	function isOnAhalogySettingsPage(){
+		global $pagenow;
+		return ($pagenow == 'options-general.php' && isset($_GET['page']) && $_GET['page'] == 'ahalogy_wp' );
+	}
+
 	/**
 	 * Just show ClientID error message if necessary
 	 */
 	function showAdminMessages() {
+
 	    //Show a message on all admin pages if the client id is not set
 		$options = get_option( $this->options_name, $this->optionsGetDefaults() );
 
-		if (empty($options['client_id'])) {
-		    // Only show to admins
-		    if ( current_user_can('manage_options') ) {
-		       $this->showMessage("Please <a href='" . admin_url( 'options-general.php?page=ahalogy_wp' ) . "'>enter your client ID</a> to activate the Ahalogy plugin.", true);
-		    }
-		} 
-
+		if ( !$this->isOnAhalogySettingsPage() )
+		{
+			if (empty($options['client_id'])) {
+			    // Only show to admins
+			    if ( current_user_can('manage_options') ) {
+			       $this->showMessage("Please <a href='" . admin_url( 'options-general.php?page=ahalogy_wp' ) . "'>enter your client ID</a> to activate the Ahalogy plugin.", true);
+			    }
+			}
+			else if (!$this->isClientIdValid($options['client_id']) ){
+			    if ( current_user_can('manage_options') ) {
+			       $this->showMessage("Please <a href='" . admin_url( 'options-general.php?page=ahalogy_wp' ) . "'>update your client ID</a> to activate the Ahalogy plugin.", true);
+			   }
+			}
+		}
 	}
 
   public static function clearCache() {
@@ -562,7 +668,6 @@ Ahalogy wordpress plugin [version %1$s] is installed but widget code is turned o
   }
 
 } // end class
-endif; // end collision check
 
 register_activation_hook( __FILE__, array( 'ahalogyWP', 'clearCache' ) );
 
@@ -572,3 +677,5 @@ include_once dirname(__FILE__) . '/Ahalogy-wp-mobile.php';
 include_once dirname(__FILE__) . '/Ahalogy-wp-mobile-post.php';
 include_once dirname(__FILE__) . '/Ahalogy-wp-mobile-author.php';
 include_once dirname(__FILE__) . '/Ahalogy-wp-mobile-attachment.php';
+
+endif; // end collision check
