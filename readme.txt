@@ -4,7 +4,7 @@ Contributors: Ahalogy
 Tags: pinterest, ahalogy
 Requires at least: 3.0
 Tested up to: 4.2.1
-Stable tag: 1.2.9
+Stable tag: 1.2.10
 
 The official Ahalogy plugin for our Content Network partners.
 
