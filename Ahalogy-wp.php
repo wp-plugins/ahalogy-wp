@@ -3,7 +3,7 @@
 Plugin Name: Ahalogy
 Plugin URI: https://app.ahalogy.com/
 Description: Inserts the Ahalogy snippet into your website
-Version: 1.2.10
+Version: 1.2.11
 Author: Ahalogy
 Author URI: http://www.ahalogy.com
 License: GPLv3
@@ -19,7 +19,7 @@ class ahalogyWP {
 	var $plugin_homepage = 'https://app.ahalogy.com/';
 	var $plugin_name = 'Ahalogy';
 	var $plugin_textdomain = 'ahalogyWP';
-	var $plugin_version = '1.2.10';
+	var $plugin_version = '1.2.11';
 	var $plugin_api_key = 'VdJXFxivKY9PEyuwN2P';
 	var $mobilify_environment = 'development';
 	var $mobilify_js_domain = 'https://w.ahalogy.com';
@@ -119,39 +119,14 @@ class ahalogyWP {
 		return preg_match('/\A\d{10,11}(-[-a-zA-Z0-9_\.]+)?/', $client_id);
 	}
 
-	function addValidationError($code, $message){
-		global $wp_settings_errors;
-		if ( count($wp_settings_errors) > 0 )
-		{
-			foreach ( $wp_settings_errors as $error )
-			{
-				if ( $error['code'] == $code && $error['message'] == $message ){
-					return;
-				}
-			}
-		}
-		add_settings_error(
-		    $code,
-		    $code,
-		    __($message, 'wpse'),
-		    'error'
-		);
-	}
-
 	// sanitize and validate options input
 	function optionsValidate( $input ) {
-		if ( $this->wereSettingsJustUpdated() )
-		{
-			return;
-		}
-
 		$client_id = wp_filter_nohtml_kses( trim($input['client_id']) );
 
 		if ( preg_match('/\d{10,11}/', $client_id, $matches) ) {
 		    $input['client_id'] = $matches[0];
 		} else {
 		    $input['client_id'] = NULL;
-			$this->addValidationError('client_id', 'Please enter your client id number <a href="https://app.ahalogy.com/settings/pinning/code-snippet" target="_blank">from Ahalogy</a>.');
 		}
 
 		if ( !isset($input['mobilify_optin']) ){
@@ -649,17 +624,6 @@ Ahalogy wordpress plugin [version %1$s] is installed but widget code is turned o
 		echo "<p><strong>$message</strong></p></div>";
 	}
 
-	function wereSettingsJustUpdated(){
-		global $pagenow;
-		return (
-			$pagenow == 'options-general.php' &&
-			isset($_GET['page']) &&
-			$_GET['page'] == 'ahalogy_wp' &&
-			isset($_GET['settings-updated']) &&
-			$_GET['settings-updated'] == 'true'
-		 );
-	}
-
 	function isOnAhalogySettingsPage(){
 		global $pagenow;
 		return ($pagenow == 'options-general.php' && isset($_GET['page']) && $_GET['page'] == 'ahalogy_wp' );
@@ -673,19 +637,16 @@ Ahalogy wordpress plugin [version %1$s] is installed but widget code is turned o
 	    //Show a message on all admin pages if the client id is not set
 		$options = get_option( $this->options_name, $this->optionsGetDefaults() );
 
-		if ( !$this->isOnAhalogySettingsPage() )
-		{
-			if (empty($options['client_id'])) {
-			    // Only show to admins
-			    if ( current_user_can('manage_options') ) {
-			       $this->showMessage("Please <a href='" . admin_url( 'options-general.php?page=ahalogy_wp' ) . "'>enter your client ID</a> to activate the Ahalogy plugin.", true);
-			    }
-			}
-			else if (!$this->isClientIdValid($options['client_id']) ){
-			    if ( current_user_can('manage_options') ) {
-			       $this->showMessage("Please <a href='" . admin_url( 'options-general.php?page=ahalogy_wp' ) . "'>update your client ID</a> to activate the Ahalogy plugin.", true);
-			   }
-			}
+		if (empty($options['client_id'])) {
+		    // Only show to admins
+		    if ( current_user_can('manage_options') ) {
+		       $this->showMessage("Please <a href='" . admin_url( 'options-general.php?page=ahalogy_wp' ) . "'>enter your client ID</a> to activate the Ahalogy plugin.", true);
+		    }
+		}
+		else if (!$this->isClientIdValid($options['client_id']) ){
+		    if ( current_user_can('manage_options') ) {
+		       $this->showMessage("Please <a href='" . admin_url( 'options-general.php?page=ahalogy_wp' ) . "'>update your client ID</a> to activate the Ahalogy plugin.", true);
+		   }
 		}
 	}
 
